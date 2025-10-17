@@ -1,0 +1,49 @@
+---
+# Namespace-level resource quotas
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: namespace-quota
+  namespace: labs
+spec:
+  hard:
+    # Limit total number of pods
+    pods: "20"
+    # Total CPU across all pods
+    requests.cpu: "4"
+    limits.cpu: "4"
+    # Total memory across all pods
+    requests.memory: 8Gi
+    limits.memory: 8Gi
+    # Persistent volume claims
+    persistentvolumeclaims: "10"
+
+---
+# Container-level default limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: labs
+spec:
+  limits:
+  # Per-container limits
+  - max:
+      cpu: 500m
+      memory: 256Mi
+    min:
+      cpu: 100m
+      memory: 128Mi
+    default:
+      cpu: 250m
+      memory: 128Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+
+  # Per-pod limits
+  - max:
+      cpu: 1
+      memory: 512Mi
+    type: Pod
