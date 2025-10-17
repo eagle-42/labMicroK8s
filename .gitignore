@@ -1,0 +1,25 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Logs & temporaires
+logs/
+*.log
+tmp/
+scratch/
+local/
+
+# Générés (ne pas versionner les sorties des builds)
+kustomize-build/
+generated/
+dist/
+build/
+out/
+
+# Éditeurs (optionnel si tu n’utilises pas)
+.vscode/
+.idea/
+
+# OS (inutile sur Linux, utile si tu édites depuis macOS)
+.DS_Store
