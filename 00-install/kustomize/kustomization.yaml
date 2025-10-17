@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: k8slab-secure-namespace
+
+resources:
+  - namespace-labs.yaml
+  - networkpolicy-labs.yaml
+  - resourcequota-labs.yaml
+
+namespace: labs
+
+commonLabels:
+  module: 00-install
+  managed-by: kustomize
+  security-level: restricted

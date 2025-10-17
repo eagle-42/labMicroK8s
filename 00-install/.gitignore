@@ -1,0 +1,13 @@
+# Cache directories (not pushed)
+.cache/
+
+# Environment configuration (local only)
+.env
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
