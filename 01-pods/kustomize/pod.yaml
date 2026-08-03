@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-pod
+  labels:
+    app: hello
+spec:
+  # The pod talks to nothing, so it gets no API credentials. Without this the
+  # default service account token is mounted and readable inside the container.
+  automountServiceAccountToken: false
+
+  # The image runs as uid 101; declaring it once, at pod level, avoids a second
+  # value at container level that silently overrides this one.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
+
+  containers:
+    - name: nginx
+      image: nginxinc/nginx-unprivileged:1.31.3-alpine
+      ports:
+        - containerPort: 8080
+
+      # The four settings Pod Security Standards 'restricted' requires.
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+
+      livenessProbe:
+        httpGet: { path: /, port: 8080 }
+        initialDelaySeconds: 10
+        periodSeconds: 10
+      readinessProbe:
+        httpGet: { path: /, port: 8080 }
+        initialDelaySeconds: 5
+        periodSeconds: 5
+
+      # Both requests and limits are set because the namespace ResourceQuota
+      # rejects a pod that omits either.
+      resources:
+        requests: { memory: 128Mi, cpu: 100m }
+        limits: { memory: 256Mi, cpu: 500m }
+
+      # A read-only root filesystem still needs these three writable.
+      volumeMounts:
+        - { name: cache, mountPath: /var/cache/nginx }
+        - { name: run, mountPath: /var/run }
+        - { name: tmp, mountPath: /tmp }
+
+  volumes:
+    - { name: cache, emptyDir: {} }
+    - { name: run, emptyDir: {} }
+    - { name: tmp, emptyDir: {} }
