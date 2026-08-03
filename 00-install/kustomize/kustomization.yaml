@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace-labs.yaml
+  - networkpolicy-labs.yaml
+  - resourcequota-labs.yaml
+
+namespace: labs
+
+# includeSelectors: false keeps these out of any selector. They label resources for
+# `kubectl get -l`, nothing more.
+labels:
+  - includeSelectors: false
+    pairs:
+      module: 00-install
+      managed-by: kustomize
