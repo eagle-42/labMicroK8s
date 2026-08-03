@@ -1,0 +1,23 @@
+# Secrets and machine-specific settings
+.env
+.env.*
+!.env.example
+
+# Build output
+kustomize-build/
+generated/
+dist/
+build/
+out/
+
+# Local noise
+logs/
+*.log
+tmp/
+scratch/
+.vscode/
+.idea/
+.DS_Store
+
+# Git hooks live in .git/hooks, installed by pre-commit. Nothing here.
+/.githooks

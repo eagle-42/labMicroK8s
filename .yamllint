@@ -1,0 +1,15 @@
+# Kubernetes manifests indent sequences by two under their key, which yamllint's
+# default rejects. The linter follows the convention, not the other way round.
+extends: default
+
+rules:
+  document-start: disable
+  line-length:
+    max: 100
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+  braces:
+    max-spaces-inside: 1
+  truthy:
+    check-keys: false
