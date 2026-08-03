@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+spec:
+  # Only the pod being exposed, not the whole namespace: publishing one service
+  # should not open the others.
+  podSelector:
+    matchLabels:
+      app: hello
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Matched by namespace rather than by pod label: MicroK8s 1.35 replaced the
+        # NGINX controller with Traefik and its labels changed, the namespace did not.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+      ports:
+        - protocol: TCP
+          port: 8080

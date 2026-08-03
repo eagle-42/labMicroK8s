@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy-ingress.yaml
+
+namespace: labs
+
+labels:
+  - includeSelectors: false
+    pairs:
+      module: 03-services
+      managed-by: kustomize
