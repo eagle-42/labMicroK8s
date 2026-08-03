@@ -1,0 +1,84 @@
+name: ci
+on: [push, pull_request]
+
+# The token can read the repository and nothing else.
+permissions:
+  contents: read
+
+# A newer push makes the previous run pointless: stop it rather than pay for it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned so the pipeline is reproducible, and so it tests the version the lab runs.
+  MICROK8S: 1.35/stable
+  KUBECONFORM: 0.8.0
+  KUBESCAPE: 4.0.11
+  PRE_COMMIT: 4.6.1
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Pinned to a commit, not a tag: a tag can be moved, a commit cannot.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0            # gitleaks scans the history
+          persist-credentials: false
+
+      # Downloaded binaries are verified against the checksums their authors publish.
+      # A release asset can be replaced; an unverified download runs whatever arrives.
+      - name: Install what the local hook needs
+        run: |
+          set -euo pipefail
+          cd "$(mktemp -d)"
+          kc="https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM}"
+          ks="https://github.com/kubescape/kubescape/releases/download/v${KUBESCAPE}"
+
+          curl -sSLO "$kc/kubeconform-linux-amd64.tar.gz"
+          curl -sSL "$kc/CHECKSUMS" | grep ' kubeconform-linux-amd64.tar.gz$' | sha256sum -c -
+          tar xzf kubeconform-linux-amd64.tar.gz kubeconform
+
+          bin="kubescape_${KUBESCAPE}_linux_amd64"
+          curl -sSLO "$ks/$bin"
+          curl -sSL "$ks/checksums.sha256" | grep " $bin\$" | sha256sum -c -
+          mv "$bin" kubescape
+
+          chmod +x kubeconform kubescape
+          sudo mv kubeconform kubescape /usr/local/bin/
+
+      - run: pipx install "pre-commit==${PRE_COMMIT}"
+      - run: pre-commit run --all-files
+
+  cluster:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The same channel the lab installs, so CI cannot pass on a Kubernetes the
+      # lab never runs.
+      - name: Bring up MicroK8s
+        run: |
+          set -euo pipefail
+          sudo snap install microk8s --classic --channel="${MICROK8S}"
+          sudo microk8s status --wait-ready --timeout 300
+          sudo microk8s enable rbac dns storage ingress
+          sudo microk8s status --wait-ready --timeout 300
+
+      - name: Apply the baseline, then each module
+        run: |
+          set -euo pipefail
+          sudo microk8s kubectl apply -k 00-install/kustomize/
+          sudo microk8s kubectl wait --for=create serviceaccount/default -n labs --timeout=90s
+          make -C 01-pods deploy
+          make -C 03-services deploy
+
+      # The point of the repo: the controls are proven by trying to break them.
+      - run: make -C 00-install security-check
+      - run: make -C 01-pods security-check
+      - run: make -C 03-services security-check
