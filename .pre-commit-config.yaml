@@ -1,0 +1,26 @@
+# One threat, one hook. Everything that can be judged before a deploy is judged here.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks          # a credential that reaches the history stays there
+
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
+    hooks:
+      - id: shellcheck        # a script that fails the way its author never tested
+        args: [-x]            # follow the file each module sources
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint          # YAML that parses differently than it reads
+
+  - repo: local
+    hooks:
+      - id: manifests
+        name: manifests are valid and pass the NSA baseline
+        entry: 02-docs/manifests.sh
+        language: script
+        pass_filenames: false
+        files: kustomize/.*\.yaml$   # runs when a manifest moves, not when a README does
