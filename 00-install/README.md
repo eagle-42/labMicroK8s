@@ -1,7 +1,7 @@
 # 00-install — a namespace that starts closed
 
-MicroK8s with four addons (`rbac`, `dns`, `storage`, `ingress`), then a namespace
-`labs` where the defaults are refusals.
+MicroK8s with three addons (`rbac`, `dns`, `storage`), a pinned Traefik, then a
+namespace `labs` where the defaults are refusals.
 
 | Control | What it refuses |
 |---|---|
@@ -15,8 +15,8 @@ MicroK8s with four addons (`rbac`, `dns`, `storage`, `ingress`), then a namespac
 ```bash
 make init && $EDITOR .env    # VM_HOST = your ssh alias
 make install                 # twice the first time: pass 1 adds you to the microk8s group
-make security-check          # do the controls still hold?      (~4 s)
-make test                    # can they fail at all?            (~11 s)
+make security-check          # do the controls still hold?
+make test                    # can they fail at all?
 ```
 
 `make help` lists every target. `make dashboard` opens the tunnel to the Traefik
@@ -54,8 +54,30 @@ requires the gate to refuse, then puts the baseline back:
 It refuses to run at all if the gate is already failing: testing the tests on a broken
 cluster proves nothing about the tests.
 
-## The trap worth knowing
+## The ingress is not the one the addon ships
 
-A namespace is not usable the moment it exists: until the controller-manager has
+`microk8s enable ingress` pins a Traefik with published CVEs, and its own `-V` flag
+cannot reach a current chart. So the lab does not enable that addon: `traefik.sh`
+installs chart **41.4.0 — Traefik v3.7.12** from `traefik-values.yaml`, and asserts
+the running image afterwards, because a version nothing compares is a report rather
+than a gate. CI runs the same script.
+
+Those values are smaller than the addon's, since they leave out what the lab never
+uses — the NGINX compatibility provider and Gateway API. They also keep the dashboard
+off `web`, the entrypoint that owns `hostPort: 80`. Published there it is guarded by
+`` Host(`dashboard.localhost`) `` alone, and a Host header is a string the client
+chooses: measured from another machine on the LAN, `/dashboard/` and `/api/rawdata`
+both answered `200`. On `traefik`, which has no `hostPort`, they answer `404` — and
+`make dashboard` tunnels straight to the pod.
+
+## Two traps worth knowing
+
+**A namespace is not usable the moment it exists.** Until the controller-manager has
 created its default ServiceAccount, every pod is rejected — even one mounting no
 token. Enabling the addons restarts that controller, so `install.sh` waits for it.
+
+**A DaemonSet with a `hostPort` cannot roll with the chart's defaults.** A surge pod
+is scheduled on the node it is replacing, so it waits for a port the old one still
+holds — `FailedScheduling … didn't have free ports`, at any node count. The values
+free the port first, and `traefik.sh` waits on `rollout status` rather than `helm
+--wait`: the chart's Service is a LoadBalancer that never gets an address here.

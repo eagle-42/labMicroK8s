@@ -23,7 +23,7 @@ is shared, so a new module costs only what is new about it. The gate is not a mo
 it judges the whole repository, so it lives at the root.
 
 ```
-common.mk        the help, security-check, test and dashboard targets, and remote kubectl
+common.mk        the help, security-check and test targets, and remote kubectl
 lib/check.sh     three jobs, kept apart: where the cluster is and how to reach it,
                  the vocabulary a module asserts in, and the verdict
 scripts/         what the gate runs and no published hook covers
@@ -108,11 +108,9 @@ exactly the one nobody has reviewed yet.
 
 ## A note on speed
 
-Every assertion is an SSH round trip, and the handshake used to cost more than the
-command it carried: 8 connections per run at 0.36 s each, 61% of the time spent
-connecting rather than checking. `kube()` now opens one connection and reuses it, which
-took a full `make test` from 48 s to 11 s without weakening a single assertion — each
-optimisation was followed by breaking a control again to confirm the gate still screams.
+Every assertion is an SSH round trip, and the handshake cost more than the command it
+carried, so `kube()` opens one connection and reuses it. Each optimisation was
+followed by breaking a control again, to confirm the gate still screams.
 
 ## Reference
 

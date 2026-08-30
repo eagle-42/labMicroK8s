@@ -46,9 +46,6 @@ help: ## Show this help
 security-check: ## Assert the controls of this module still hold
 	@bash security-check.sh
 
-# The dashboard is only routed on Host(`dashboard.localhost`), and that name resolves
-# to 127.0.0.1 - so it can only be reached through a tunnel ending where the browser
-# runs. This opens the first leg; a browser on another machine chains the second.
 test: ## Prove every assertion of this module can actually fail
 	@test -f tests/falsify.sh || { echo "$(MODULE) has no tests/falsify.sh yet" >&2; exit 1; }
 	@# One suite at a time on this machine. The cluster is remote, so this does not
