@@ -1,4 +1,4 @@
-# 03-services — publish one path, keep the rest shut
+# 02-services — publish one path, keep the rest shut
 
 The pod from `01-pods` answers on 8080 and nothing can reach it: module 00 denies by
 default. Exposing it means adding one route, from one source, on one port.

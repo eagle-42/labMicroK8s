@@ -22,7 +22,7 @@ make deploy && make security-check
 
 ## What the check proves
 
-It reads `id -u` inside the running container, tries to `touch /probe` on the
+It reads `id -u` inside the running container, reads the container's own mount table on the
 read-only filesystem, and reads the capability list the API server actually stored. A
 manifest is an intention; the running container is the fact.
 

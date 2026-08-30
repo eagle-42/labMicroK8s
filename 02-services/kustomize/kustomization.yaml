@@ -11,5 +11,5 @@ namespace: labs
 labels:
   - includeSelectors: false
     pairs:
-      module: 03-services
+      module: 02-services
       managed-by: kustomize
