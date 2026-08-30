@@ -128,7 +128,7 @@ spec:
   securityContext: {runAsNonRoot: true, runAsUser: 65534, seccompProfile: {type: RuntimeDefault}}
   containers:
   - name: probe
-    image: busybox:1.36
+    image: busybox:1.38.0
     command: [sleep, "120"]
     securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
     resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 250m, memory: 128Mi}}

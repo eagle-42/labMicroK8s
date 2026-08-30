@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 # The version the lab installs, so the schemas are the ones this cluster enforces
 # rather than the newest kubeconform happens to know about.
-K8S=1.35.6
+K8S=1.36.2
 
 # Nothing escapes a `find | while` subshell, so the loop is fed instead of piped:
 # the count has to survive. A run that judged no module is not a passing gate - the
@@ -35,4 +35,4 @@ kubescape scan framework NSA /tmp/all.yaml --severity-threshold Medium
 # An apiVersion valid today and gone at the next upgrade: kubeconform judges a schema,
 # kubescape judges a control, neither judges a countdown. Pinned to the version the lab
 # runs, so the answer is about this cluster and not about the newest one.
-pluto detect /tmp/all.yaml -t k8s=v1.35 --output wide
+pluto detect /tmp/all.yaml -t k8s=v1.36 --output wide
