@@ -1,5 +1,5 @@
-include ../common.mk
-.PHONY: deploy validate logs exec delete port-forward
+include ../common.mk   # also defines: help, security-check and test
+.PHONY: deploy validate exec delete
 
 POD := hello-pod
 
@@ -10,16 +10,13 @@ deploy: ## Deploy the pod into the labs namespace
 
 validate: ## Show the pod and the controls it declares
 	@$(call kube,get pod $(POD) -n labs -o wide)
-	@$(call kube,get pod $(POD) -n labs -o jsonpath='{.spec.securityContext}{"\n"}')
-
-logs: ## Tail the pod logs
-	@$(call kube,logs $(POD) -n labs --tail=50)
+	@$(call kube,get pod $(POD) -n labs -o jsonpath={.spec.securityContext})
+	@echo
+	@$(call kube,get pod $(POD) -n labs -o jsonpath={.spec.containers[0].securityContext})
+	@echo
 
 exec: ## Open a shell in the pod
-	@$(call kube,exec -it $(POD) -n labs -- /bin/sh)
+	@$(call kube,exec -it $(POD) -n labs -- /bin/sh,-tt)
 
 delete: ## Delete the pod
 	@$(call kube,delete pod $(POD) -n labs --ignore-not-found)
-
-port-forward: ## Reach the pod on http://localhost:8080
-	@$(call kube,port-forward -n labs pod/$(POD) 8080:8080)

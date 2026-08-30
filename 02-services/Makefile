@@ -1,4 +1,6 @@
-include ../common.mk
+include ../common.mk   # also defines: help, security-check and test
+
+PUBLISHED := service,ingress,networkpolicy
 .PHONY: deploy validate delete
 
 deploy: ## Expose the pod through a Service and an Ingress
@@ -6,9 +8,7 @@ deploy: ## Expose the pod through a Service and an Ingress
 	@$(apply)
 
 validate: ## Show the service, the ingress and the policy that lets it through
-	@$(call kube,get service$(,)ingress$(,)networkpolicy -n labs)
+	@$(call kube,get $(PUBLISHED) -n labs)
 
 delete: ## Remove the service, the ingress and the policy
 	@$(call kube,delete service/hello ingress/hello networkpolicy/allow-ingress-controller -n labs --ignore-not-found)
-
-, := ,

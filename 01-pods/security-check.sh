@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
-# A securityContext is an intention; the running container is the fact.
+# A securityContext is an intention; the running container is the fact. Every
+# assertion below reads the container, never the object the API server stored.
 set -uo pipefail
 # shellcheck source-path=SCRIPTDIR source=../lib/check.sh
 . "$(dirname "$0")/../lib/check.sh"
+
 POD=hello-pod
+require_namespace labs
+require pod "$POD" -n labs
 
-uid=$(kube "exec $POD -n labs -- id -u" 2>/dev/null | tr -d '\r')
-if [ "$uid" = 101 ]; then check "runs as uid 101" ok
-else check "runs as uid 101" ko "got '${uid:-nothing}'"; fi
+uid=$(kube "exec $POD -n labs -- id -u"); rc=$?
+assert_matches "runs as uid 101" '^101[[:space:]]*$' "$uid" "$rc"
 
-if kube "exec $POD -n labs -- touch /probe" >/dev/null 2>&1
-then check "read-only root filesystem" ko "/probe was created"
-else check "read-only root filesystem" ok; fi
+# `touch /` fails for a non-root user whether the filesystem is read-only or not -
+# "Permission denied" rather than "Read-only file system" - so that assertion could
+# never fail. The mount table is the fact, parsed here rather than in a nested shell.
+mounts=$(kube "exec $POD -n labs -- cat /proc/mounts"); rc=$?
+assert_matches "read-only root filesystem" '^[^ ]+ / [^ ]+ ro[,[:space:]]' "$mounts" "$rc"
 
-caps=$(kube "get pod $POD -n labs -o jsonpath='{.spec.containers[0].securityContext.capabilities.drop[*]}'" 2>/dev/null)
-if [[ "$caps" == *ALL* ]]; then check "all capabilities dropped" ok
-else check "all capabilities dropped" ko "drop list is '${caps:-empty}'"; fi
-
-esc=$(kube "get pod $POD -n labs -o jsonpath='{.spec.containers[0].securityContext.allowPrivilegeEscalation}'" 2>/dev/null)
-if [ "$esc" = false ]; then check "privilege escalation denied" ok
-else check "privilege escalation denied" ko "got '${esc:-unset}'"; fi
+# The kernel's own view of the process, read once and asserted twice. CapBnd and not
+# CapEff: the effective set is empty for any non-root process whatever the manifest
+# says, so asserting on it could never fail - measured, it reads 0 with drop:[ALL]
+# and with drop:[NET_RAW] alike. The bounding set is what capabilities.drop controls:
+# 0 against 00000000a80405fb.
+status=$(kube "exec $POD -n labs -- cat /proc/self/status"); rc=$?
+assert_matches "all capabilities dropped" '^CapBnd:[[:space:]]*0+$' "$status" "$rc"
+assert_matches "privilege escalation denied" '^NoNewPrivs:[[:space:]]*1$' "$status" "$rc"
 
 summary

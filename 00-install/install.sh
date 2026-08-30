@@ -11,7 +11,9 @@ die() { echo "error: $*" >&2; exit 1; }
 
 if ! command -v microk8s >/dev/null 2>&1; then
   echo "installing microk8s"
-  sudo snap install microk8s --classic
+  # Pinned, and to the same channel CI installs: an unpinned lab drifts to a
+  # Kubernetes the gate has never been run against.
+  sudo snap install microk8s --classic --channel="${MICROK8S:-1.35/stable}"
 fi
 
 # Group membership, not cluster status: `microk8s status` also fails on a stopped
