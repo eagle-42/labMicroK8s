@@ -10,8 +10,12 @@ init: ## Create .env from the example
 
 install: ## Install MicroK8s and the security baseline on the VM
 	@test -n "$(VM_HOST)" || { echo "VM_HOST unset: run make init first" >&2; exit 1; }
-	scp -r kustomize install.sh $(VM_HOST):~/
-	ssh $(VM_HOST) "chmod +x ~/install.sh && ~/install.sh"
+	@# One destination, the name `apply` uses: two copies on the VM meant `install` and
+	@# `deploy` could apply different manifests.
+	ssh '$(VM_HOST)' 'rm -rf ~/$(MODULE)-kustomize'
+	scp -qr kustomize '$(VM_HOST)':~/$(MODULE)-kustomize
+	scp -q install.sh traefik.sh traefik-values.yaml '$(VM_HOST)':~/
+	ssh '$(VM_HOST)' "chmod +x ~/install.sh ~/traefik.sh && ~/install.sh ~/$(MODULE)-kustomize"
 
 deploy: ## Re-apply the baseline, without reinstalling MicroK8s
 	@$(apply)
@@ -33,16 +37,18 @@ dashboard: ## Tunnel to the Traefik dashboard (Ctrl-C to close)
 	 test -z "$$holder" || { echo "port 8080 is already held here by pid $$holder:" >&2; \
 	                         ps -o args= -p "$$holder" >&2; \
 	                         echo "close that tunnel, or: kill $$holder" >&2; exit 1; }
+	@# Straight to the pod: traefik.sh moves the dashboard off the node's port 80. A
+	@# remote `kubectl port-forward` orphans a process every time the tunnel dies; with
+	@# `-N` there is no remote command to orphan.
+	@#
 	@# `exec` and not a background job: a shell puts SIGINT on ignore for anything
 	@# it starts with `&`, so a backgrounded tunnel would survive the Ctrl-C this
 	@# target documents. In the foreground the terminal signals it directly.
-	@addr=$$(ssh -G '$(VM_HOST)' | awk '/^hostname /{print $$2}'); \
-	 test -n "$$addr" || { echo "cannot resolve $(VM_HOST) from ~/.ssh/config" >&2; exit 1; }; \
+	@ip=$$($(call kube,get pods -n ingress -l app.kubernetes.io/name=traefik -o jsonpath='{.items[0].status.podIP}')); \
+	 test -n "$$ip" || { echo "no traefik pod on $(VM_HOST): run make install" >&2; exit 1; }; \
 	 echo "This tunnel ends on $$(hostname). Open it there:"; \
 	 echo "    http://dashboard.localhost:8080/dashboard/"; \
 	 echo; \
-	 echo "Browsing from another machine? This target is not what you want."; \
-	 echo "Ctrl-C, and run this on the machine with the browser instead:"; \
-	 echo "    ssh -N -L 8080:$$addr:80 $${GATEWAY:-$$(hostname)}"; \
+	 echo "Browsing from another machine? Run this target on that machine."; \
 	 echo; \
-	 exec ssh -N -o ExitOnForwardFailure=yes -L 8080:$$addr:80 '$(VM_HOST)'
+	 exec ssh -N -o ExitOnForwardFailure=yes -L "8080:$$ip:8080" '$(VM_HOST)'

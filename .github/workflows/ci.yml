@@ -12,12 +12,12 @@ concurrency:
 
 env:
   # Pinned so the pipeline is reproducible, and so it tests the version the lab runs.
-  MICROK8S: 1.35/stable
+  MICROK8S: 1.36/stable
   KUBECONFORM: 0.8.0
   KUBESCAPE: 4.0.12
   PLUTO: 5.24.3
   GITLEAKS: 8.30.1
-  KUBECTL: v1.35.8
+  KUBECTL: v1.36.4
   PRE_COMMIT: 4.6.2
 
 jobs:
@@ -94,8 +94,13 @@ jobs:
           set -euo pipefail
           sudo snap install microk8s --classic --channel="${MICROK8S}"
           sudo microk8s status --wait-ready --timeout 300
-          sudo microk8s enable rbac dns storage ingress
+          sudo microk8s enable rbac dns storage
           sudo microk8s status --wait-ready --timeout 300
+
+      # The addon ships a Traefik the lab does not run. The same script the install
+      # runs, so the pipeline cannot pass against an ingress nobody serves with.
+      - name: Bring the ingress to the pinned Traefik
+        run: sudo bash 00-install/traefik.sh
 
       - name: Apply the baseline, then each module
         run: |

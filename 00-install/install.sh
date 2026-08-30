@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# Installs MicroK8s and applies the security baseline of the labs namespace.
+# Installs MicroK8s, applies the baseline of the labs namespace, updates the ingress.
 set -euo pipefail
 
-ADDONS=(rbac dns storage ingress)
+ADDONS=(rbac dns storage)
+KUSTOMIZE=${1:-kustomize}
 
 die() { echo "error: $*" >&2; exit 1; }
 
 [[ "$(uname -s)" == "Linux" ]] || die "this script runs on Linux, not $(uname -s)"
-[[ -d kustomize ]] || die "run this from the module directory: kustomize/ not found"
+[[ -d "$KUSTOMIZE" ]] || die "no manifests at $KUSTOMIZE: run this from the module directory"
 
 if ! command -v microk8s >/dev/null 2>&1; then
   echo "installing microk8s"
   # Pinned, and to the same channel CI installs: an unpinned lab drifts to a
   # Kubernetes the gate has never been run against.
-  sudo snap install microk8s --classic --channel="${MICROK8S:-1.35/stable}"
+  sudo snap install microk8s --classic --channel="${MICROK8S:-1.36/stable}"
 fi
 
 # Group membership, not cluster status: `microk8s status` also fails on a stopped
@@ -33,13 +34,17 @@ echo "enabling addons: ${ADDONS[*]}"
 microk8s enable "${ADDONS[@]}"
 
 echo "applying the security baseline"
-microk8s kubectl apply -k kustomize/
+microk8s kubectl apply -k "$KUSTOMIZE/"
 
 # A namespace is not usable the moment it exists: until the controller-manager has
 # created its default ServiceAccount, every pod is rejected — including one that
 # mounts no token. Enabling the addons restarts that controller, so the first
 # `make deploy` after an install lands exactly in that window.
 microk8s kubectl wait --for=create serviceaccount/default -n labs --timeout=90s
+
+# After the baseline: a cluster without its policies is worse than one with no
+# ingress, and this is the step most likely to fail.
+"$(dirname "$0")/traefik.sh"
 
 microk8s kubectl get namespace labs
 microk8s kubectl get networkpolicy -n labs
