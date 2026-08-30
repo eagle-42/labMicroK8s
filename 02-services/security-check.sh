@@ -19,10 +19,18 @@ assert_matches "service has a ready endpoint" '.' "$ep" "$rc"
 
 # An Ingress exists for clients outside the cluster, so the request comes from
 # outside it - node_addr, not the node's own loopback.
-code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 "http://$(node_addr)/" 2>/dev/null)
+# Only 503 is retried: Traefik reconciles after the fact, so a backend that has just
+# restarted is briefly out of its pool. A deleted Ingress (404) concludes at once.
+addr=$(node_addr)
+for _ in $(seq 1 10); do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 "http://$addr/" 2>/dev/null)
+  [ "$code" = 503 ] || break
+  sleep 1
+done
 case "$code" in
   200)    check "ingress serves the pod" ok ;;
-  000|"") check "ingress serves the pod" unknown "no answer from $(node_addr)" ;;
+  000|"") check "ingress serves the pod" unknown "no answer from $addr" ;;
+  503)    check "ingress serves the pod" ko "still 503 after 10s: no backend joined the route" ;;
   *)      check "ingress serves the pod" ko "got HTTP $code" ;;
 esac
 
