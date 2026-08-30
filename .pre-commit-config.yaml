@@ -19,8 +19,8 @@ repos:
   - repo: local
     hooks:
       - id: manifests
-        name: manifests are valid and pass the NSA baseline
-        entry: 02-docs/manifests.sh
+        name: manifests are valid, pass the NSA baseline, and use no dying apiVersion
+        entry: scripts/manifests.sh
         language: script
         pass_filenames: false
         files: kustomize/.*\.yaml$   # runs when a manifest moves, not when a README does

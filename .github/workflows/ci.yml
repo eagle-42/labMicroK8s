@@ -14,8 +14,11 @@ env:
   # Pinned so the pipeline is reproducible, and so it tests the version the lab runs.
   MICROK8S: 1.35/stable
   KUBECONFORM: 0.8.0
-  KUBESCAPE: 4.0.11
-  PRE_COMMIT: 4.6.1
+  KUBESCAPE: 4.0.12
+  PLUTO: 5.24.3
+  GITLEAKS: 8.30.1
+  KUBECTL: v1.35.8
+  PRE_COMMIT: 4.6.2
 
 jobs:
   lint:
@@ -46,11 +49,35 @@ jobs:
           curl -sSL "$ks/checksums.sha256" | grep " $bin\$" | sha256sum -c -
           mv "$bin" kubescape
 
-          chmod +x kubeconform kubescape
-          sudo mv kubeconform kubescape /usr/local/bin/
+          gl="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS}"
+          tgz="gitleaks_${GITLEAKS}_linux_x64.tar.gz"
+          curl -sSLO "$gl/$tgz"
+          curl -sSL "$gl/gitleaks_${GITLEAKS}_checksums.txt" | grep " $tgz\$" | sha256sum -c -
+          tar xzf "$tgz" gitleaks
+
+          # scripts/manifests.sh calls `kubectl kustomize`; without this the lint job
+          # inherited whatever the runner image happened to ship.
+          kc_url="https://dl.k8s.io/release/${KUBECTL}/bin/linux/amd64/kubectl"
+          curl -sSLO "$kc_url"
+          echo "$(curl -sSL "$kc_url.sha256")  kubectl" | sha256sum -c -
+
+          pl="https://github.com/FairwindsOps/pluto/releases/download/v${PLUTO}"
+          tgz="pluto_${PLUTO}_linux_amd64.tar.gz"
+          curl -sSLO "$pl/$tgz"
+          curl -sSL "$pl/checksums.txt" | grep " $tgz\$" | sha256sum -c -
+          tar xzf "$tgz" pluto
+
+          chmod +x kubeconform kubescape pluto gitleaks kubectl
+          sudo mv kubeconform kubescape pluto gitleaks kubectl /usr/local/bin/
 
       - run: pipx install "pre-commit==${PRE_COMMIT}"
       - run: pre-commit run --all-files
+
+      # The pinned hook runs `gitleaks --staged`, and under `--all-files` the index
+      # is empty: it scans zero commits and always passes. The history is what
+      # fetch-depth: 0 was fetched for, so it is scanned here, once, for real.
+      - name: A credential that reached the history stays there
+        run: gitleaks git --redact --exit-code 1 .
 
   cluster:
     runs-on: ubuntu-latest
@@ -73,12 +100,18 @@ jobs:
       - name: Apply the baseline, then each module
         run: |
           set -euo pipefail
-          sudo microk8s kubectl apply -k 00-install/kustomize/
+          make -C 00-install deploy
           sudo microk8s kubectl wait --for=create serviceaccount/default -n labs --timeout=90s
           make -C 01-pods deploy
-          make -C 03-services deploy
+          make -C 02-services deploy
 
       # The point of the repo: the controls are proven by trying to break them.
       - run: make -C 00-install security-check
       - run: make -C 01-pods security-check
-      - run: make -C 03-services security-check
+      - run: make -C 02-services security-check
+
+      # The gates above assert the controls hold. These assert the gates can fail:
+      # without them the repo's central claim is the one thing CI never checks.
+      - run: make -C 00-install test
+      - run: make -C 01-pods test
+      - run: make -C 02-services test
