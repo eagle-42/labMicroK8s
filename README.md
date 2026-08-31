@@ -27,6 +27,7 @@ common.mk        the help, security-check and test targets, and remote kubectl
 lib/check.sh     three jobs, kept apart: where the cluster is and how to reach it,
                  the vocabulary a module asserts in, and the verdict
 scripts/         what the gate runs and no published hook covers
+infra/           how to get a host to run a module on; not a module itself
 NN-name/
   Makefile       the verb this module is about
   kustomize/     what it deploys

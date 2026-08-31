@@ -3,6 +3,10 @@
 MicroK8s with three addons (`rbac`, `dns`, `storage`), a pinned Traefik, then a
 namespace `labs` where the defaults are refusals.
 
+**It hardens a host you give it; it never creates one.** Any Linux host reachable over
+ssh, with sudo and snap — a Multipass VM (`infra/multipass.md`), a GCE instance
+(`03-provision`), or a machine you already have. The lab runs on Ubuntu 22.04.
+
 | Control | What it refuses |
 |---|---|
 | PSS `restricted` (namespace labels) | a non-conforming pod is never **created** — admission, not monitoring |
