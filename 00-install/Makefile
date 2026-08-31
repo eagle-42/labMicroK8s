@@ -28,27 +28,14 @@ kill: ## Delete the labs namespace and everything in it
 	@printf 'delete namespace labs on $(VM_HOST)? [y/N] '; read -r a; [ "$$a" = y ]
 	@$(call kube,delete namespace labs)
 
-dashboard: ## Tunnel to the Traefik dashboard (Ctrl-C to close)
+dashboard: ## Print the tunnel command for the Traefik dashboard
 	@test -n "$(VM_HOST)" || { echo "no VM: the cluster is this machine" >&2; exit 1; }
-	@# Named up front: ssh's own "Address already in use" plus make's Error 255 is
-	@# two errors for one cause, and neither says what to do about it. The pid comes
-	@# from ss rather than a pgrep pattern, which would match this very command line.
-	@holder=$$(ss -lntp 2>/dev/null | sed -n 's/.*127\.0\.0\.1:8080 .*pid=\([0-9]*\).*/\1/p' | head -1); \
-	 test -z "$$holder" || { echo "port 8080 is already held here by pid $$holder:" >&2; \
-	                         ps -o args= -p "$$holder" >&2; \
-	                         echo "close that tunnel, or: kill $$holder" >&2; exit 1; }
-	@# Straight to the pod: traefik.sh moves the dashboard off the node's port 80. A
-	@# remote `kubectl port-forward` orphans a process every time the tunnel dies; with
-	@# `-N` there is no remote command to orphan.
-	@#
-	@# `exec` and not a background job: a shell puts SIGINT on ignore for anything
-	@# it starts with `&`, so a backgrounded tunnel would survive the Ctrl-C this
-	@# target documents. In the foreground the terminal signals it directly.
-	@ip=$$($(call kube,get pods -n ingress -l app.kubernetes.io/name=traefik -o jsonpath='{.items[0].status.podIP}')); \
-	 test -n "$$ip" || { echo "no traefik pod on $(VM_HOST): run make install" >&2; exit 1; }; \
-	 echo "This tunnel ends on $$(hostname). Open it there:"; \
+	@# Prints, holds nothing: the tunnel belongs to the machine with the browser, and
+	@# a target that holds it on the machine with the repo helps neither.
+	@node=$$(ssh -G '$(VM_HOST)' | awk '/^hostname /{print $$2}'); \
+	 test -n "$$node" || { echo "cannot resolve $(VM_HOST) from ~/.ssh/config" >&2; exit 1; }; \
+	 echo "Run one of these where the browser is, then open"; \
 	 echo "    http://dashboard.localhost:8080/dashboard/"; \
 	 echo; \
-	 echo "Browsing from another machine? Run this target on that machine."; \
-	 echo; \
-	 exec ssh -N -o ExitOnForwardFailure=yes -L "8080:$$ip:8080" '$(VM_HOST)'
+	 echo "    ssh -N -L 8080:$$node:80 $(VM_HOST)"; \
+	 echo "    ssh -N -L 8080:$$node:80 $${GATEWAY:-$$(hostname)}   # if that host is out of reach"

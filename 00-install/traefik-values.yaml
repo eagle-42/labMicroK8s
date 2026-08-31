@@ -21,14 +21,14 @@ updateStrategy:
     maxUnavailable: 1
     maxSurge: 0
 
-# `traefik` is the entrypoint with no hostPort: the dashboard is reached by tunnel,
-# not by sending a Host header to the node.
+# On `web`, so a tunnel to the node's port 80 reaches it. Deliberate, and the README
+# says what it costs: a Host header is a string anyone can send.
 ingressRoute:
   dashboard:
     enabled: true
     matchRule: Host(`dashboard.localhost`)
     entryPoints:
-      - traefik
+      - web
 
 providers:
   kubernetesIngress:

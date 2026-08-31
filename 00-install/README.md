@@ -19,8 +19,8 @@ make security-check          # do the controls still hold?
 make test                    # can they fail at all?
 ```
 
-`make help` lists every target. `make dashboard` opens the tunnel to the Traefik
-dashboard and holds it until Ctrl-C.
+`make help` lists every target. `make dashboard` prints the tunnel command for the
+Traefik dashboard — the tunnel belongs to the machine with the browser.
 
 ## What `security-check` proves
 
@@ -63,12 +63,16 @@ the running image afterwards, because a version nothing compares is a report rat
 than a gate. CI runs the same script.
 
 Those values are smaller than the addon's, since they leave out what the lab never
-uses — the NGINX compatibility provider and Gateway API. They also keep the dashboard
-off `web`, the entrypoint that owns `hostPort: 80`. Published there it is guarded by
-`` Host(`dashboard.localhost`) `` alone, and a Host header is a string the client
-chooses: measured from another machine on the LAN, `/dashboard/` and `/api/rawdata`
-both answered `200`. On `traefik`, which has no `hostPort`, they answer `404` — and
-`make dashboard` tunnels straight to the pod.
+uses — the NGINX compatibility provider and Gateway API.
+
+**The dashboard is published on the node, and that is a deliberate risk.** It sits on
+`web`, the entrypoint owning `hostPort: 80`, guarded by `` Host(`dashboard.localhost`) ``
+alone — and a Host header is a string the client chooses, not an access control.
+Measured from another machine on the same LAN, `/dashboard/` and `/api/rawdata` both
+answer `200`, and `rawdata` returns every router, service and middleware Traefik knows.
+On a lab whose network you trust that is a fair trade for a one-hop tunnel; on anything
+else it is not. Moving the route to the `traefik` entrypoint, which has no `hostPort`,
+closes it — at the cost of a second hop from any machine that cannot reach the node.
 
 ## Two traps worth knowing
 
