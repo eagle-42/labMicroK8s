@@ -13,7 +13,7 @@ namespace `labs` where the defaults are refusals.
 ## Run
 
 ```bash
-make init && $EDITOR .env    # VM_HOST = your ssh alias
+make init && $EDITOR .env    # VM_HOST, and GATEWAY = how you reach this machine
 make install                 # twice the first time: pass 1 adds you to the microk8s group
 make security-check          # do the controls still hold?
 make test                    # can they fail at all?

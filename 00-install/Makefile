@@ -30,12 +30,10 @@ kill: ## Delete the labs namespace and everything in it
 
 dashboard: ## Print the tunnel command for the Traefik dashboard
 	@test -n "$(VM_HOST)" || { echo "no VM: the cluster is this machine" >&2; exit 1; }
-	@# Prints, holds nothing: the tunnel belongs to the machine with the browser, and
-	@# a target that holds it on the machine with the repo helps neither.
+	@test -n "$(GATEWAY)" || { echo "GATEWAY unset in .env: the ssh alias your workstation uses to reach this machine" >&2; exit 1; }
+	@# One line, ending here rather than on the VM: the workstation that needs the
+	@# tunnel has no key on the node, and this machine already reaches it.
 	@node=$$(ssh -G '$(VM_HOST)' | awk '/^hostname /{print $$2}'); \
 	 test -n "$$node" || { echo "cannot resolve $(VM_HOST) from ~/.ssh/config" >&2; exit 1; }; \
-	 echo "Run one of these where the browser is, then open"; \
-	 echo "    http://dashboard.localhost:8080/dashboard/"; \
-	 echo; \
-	 echo "    ssh -N -L 8080:$$node:80 $(VM_HOST)"; \
-	 echo "    ssh -N -L 8080:$$node:80 $${GATEWAY:-$$(hostname)}   # if that host is out of reach"
+	 echo "ssh -N -L 8080:$$node:80 $(GATEWAY)"; \
+	 echo "then open http://dashboard.localhost:8080/dashboard/"
