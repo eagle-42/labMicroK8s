@@ -17,7 +17,13 @@ make init && $EDITOR .env    # VM_HOST, and GATEWAY = how you reach this machine
 make install                 # twice the first time: pass 1 adds you to the microk8s group
 make security-check          # do the controls still hold?
 make test                    # can they fail at all?
+make kill                    # tear it all down again
 ```
+
+`kill` leaves nothing of this repo behind — not the two namespaces, not the ingress
+release with the ClusterRole and the `public` IngressClass that outlive a namespace
+delete, not the files copied to the VM. So `install` always starts from the same
+nothing, and `install` purges what it is about to write for the same reason.
 
 `make help` lists every target. `make dashboard` prints the tunnel command for the
 Traefik dashboard — the tunnel belongs to the machine with the browser.
